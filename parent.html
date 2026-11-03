@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بوابة ولي الأمر</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap">
+<style>
+:root{--bg:#f6f4fb;--c:#fff;--t:#1f1b2e;--m:#6b6680;--p:#6c3fd1;--b:#e6e1f2;--r:#b42318;--rb:#fde8e8;--g:#0f8f77;--gb:#e3f6f1;--o:#9a5b00;--ob:#fff3d6}
+@media(prefers-color-scheme:dark){:root{--bg:#15121f;--c:#201b30;--t:#f1eefb;--m:#a49fba;--b:#332c4a;--rb:#4a1f24;--r:#ff9a92;--gb:#12372f;--g:#6fe0c8;--ob:#44330f;--o:#ffd37a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px Cairo,sans-serif;padding:12px;max-width:640px;margin:auto}
+.card{background:var(--c);border:1px solid var(--b);border-radius:14px;padding:12px;margin:10px 0}
+input,button{font:inherit;padding:10px;border-radius:10px;border:1px solid var(--b);background:var(--c);color:var(--t);width:100%;margin-top:8px}
+button{background:var(--p);color:#fff;border:0;font-weight:600;cursor:pointer}.m{color:var(--m)}
+table{width:100%;border-collapse:collapse}th,td{padding:7px;border-bottom:1px solid var(--b);text-align:right}
+.bn{padding:12px;border-radius:12px;font-weight:600;margin:10px 0}.r{background:var(--rb);color:var(--r)}.o{background:var(--ob);color:var(--o)}.g{background:var(--gb);color:var(--g)}
+</style>
+</head>
+<body>
+<h2>بوابة ولي الأمر</h2>
+<div class="card">
+<label for="cd">كود الطالبة</label><input id="cd" inputmode="numeric" autocomplete="off">
+<label for="ph" style="display:block;margin-top:8px">آخر ٤ أرقام من تليفون ولي الأمر المسجل بالمدرسة</label><input id="ph" inputmode="numeric" maxlength="4" autocomplete="off">
+<button id="go">عرض</button><p class="m" id="msg"></p>
+</div>
+<div id="o"></div>
+<script>
+var API="https://sheetdb.io/api/v1/4f6j4m9d8po12",MAX=15;
+function $(i){return document.getElementById(i)}
+function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;return d.innerHTML}
+function nd(s){return String(s||"").replace(/[٠-٩]/g,function(c){return c.charCodeAt(0)-1632}).replace(/\D/g,"")}
+function ys(){var n=new Date(),y=n.getMonth()>=8?n.getFullYear():n.getFullYear()-1;return y+"-09-01"}
+function g(p){var c=window.AbortController?new AbortController():null,t=setTimeout(function(){c&&c.abort()},20000);return fetch(API+p,{signal:c&&c.signal}).then(function(r){clearTimeout(t);if(!r.ok)throw 0;return r.json()})}
+function mn(k){try{return new Date(k+"-01T00:00:00").toLocaleDateString("ar-EG",{month:"long",year:"numeric"})}catch(e){return k}}
+$("go").onclick=function(){var c=nd($("cd").value),p=nd($("ph").value).slice(-4),m=$("msg");
+ if(!c||p.length<4){m.textContent="اكتبي الكود وآخر ٤ أرقام من التليفون.";return}
+ m.textContent="جاري البحث…";$("o").innerHTML="";
+ g("/search?sheet=students&code="+encodeURIComponent(c)).then(function(S){var s=S[0];
+  if(!s||nd(s.phone).slice(-4)!==p){m.textContent="البيانات غير صحيحة، راجعي الكود ورقم التليفون.";return}
+  return Promise.all([g("/search?sheet=attendance&code="+encodeURIComponent(c)),g("/search?sheet=grades&code="+encodeURIComponent(c))]).then(function(R){m.textContent="";show(s,R[0],R[1])})
+ }).catch(function(){m.textContent="تعذّر الاتصال، جرّبي تاني."})};
+function show(s,A,G){var y=ys(),d=A.filter(function(r){return r.status==="absent"&&r.date>=y}).map(function(r){return r.date}).sort(),n=d.length,mo={},sub={};
+ d.forEach(function(x){var k=x.slice(0,7);mo[k]=(mo[k]||0)+1});
+ G.forEach(function(r){var m=+r.max;if(m>0&&r.score!==""&&r.date>=y){(sub[r.subject]=sub[r.subject]||[]).push(+r.score/m*100)}});
+ var b=n>MAX?'<div class="bn r">⚠️ إنذار غياب<br>تجاوزت الطالبة الحد المسموح للغياب ('+MAX+' يوم)، وبلغ غيابها '+n+' يوم. تاريخ الإنذار: '+esc(d[MAX])+'. برجاء التواصل مع إدارة المدرسة.</div>'
+ :n>MAX-5?'<div class="bn o">تنبيه: غياب الطالبة '+n+' يوم، وباقي '+(MAX+1-n)+' يوم غياب ويصدر الإنذار.</div>'
+ :'<div class="bn g">لا يوجد إنذار. غياب الطالبة '+n+' يوم هذا العام.</div>';
+ var mt=Object.keys(mo).sort().map(function(k){return'<tr><td>'+mn(k)+'</td><td>'+mo[k]+'</td></tr>'}).join("")||'<tr><td colspan="2" class="m">لا يوجد غياب</td></tr>';
+ var st=Object.keys(sub).map(function(k){var a=sub[k];return'<tr><td>'+esc(k)+'</td><td>'+Math.round(a.reduce(function(x,z){return x+z},0)/a.length)+'%</td></tr>'}).join("")||'<tr><td colspan="2" class="m">لا توجد درجات بعد</td></tr>';
+ $("o").innerHTML='<div class="card"><b>'+esc(String(s.name).trim())+'</b><div class="m">'+esc(s["class"]||"")+'</div></div>'+b
+ +'<div class="card"><b>الغياب بالشهر</b><table><tr><th>الشهر</th><th>أيام الغياب</th></tr>'+mt+'</table></div>'
+ +'<div class="card"><b>معدل الدرجات</b><table><tr><th>المادة</th><th>المعدل</th></tr>'+st+'</table></div>'}
+</script>
+</body>
+</html>
